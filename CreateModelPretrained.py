@@ -2,9 +2,10 @@ import cv2
 import os
 import numpy as np
 from tensorflow.keras.applications import NASNetLarge
-from tensorflow.keras.layers import Conv2D, UpSampling2D, Concatenate
+from tensorflow.keras.layers import Conv2D, UpSampling2D
 from tensorflow.keras.models import Model
 from tensorflow.keras.losses import BinaryCrossentropy
+from tensorflow.keras.metrics import AUC, Recall
 
 # Load the images of a folder and prepare them for the Neural Network
 def load_jpg_images(f_path, target_shape):
@@ -17,10 +18,7 @@ def load_jpg_images(f_path, target_shape):
 
         image_resized = cv2.resize(image, target_shape)
 
-        image_rgb = np.expand_dims(image_resized, axis=-1)
-        image_rgb = np.concatenate([image_rgb] * 3, axis=-1)
-
-        loaded_images.append(image_rgb)
+        loaded_images.append(image_resized)
 
     images_array = np.array(loaded_images)
 
@@ -28,7 +26,7 @@ def load_jpg_images(f_path, target_shape):
 
     return images_array
 
-# Load the masks of a folder and prepare them for the Neural Network
+# Load the images of a folder and prepare them for the Neural Network
 def load_jpg_masks(f_path, target_shape):
     loaded_masks = []
 
@@ -39,14 +37,17 @@ def load_jpg_masks(f_path, target_shape):
 
         mask_resized = cv2.resize(mask, target_shape)
 
+        mask_resized = np.expand_dims(mask_resized, axis=-1)
+
+        print(f"Shape of loaded mask '{mask_path}': {mask_resized.shape}")
+
         loaded_masks.append(mask_resized)
 
     masks_array = np.array(loaded_masks)
 
-    masks_array = masks_array.astype('float32')
+    masks_array = masks_array.astype('float32') / 255.0
 
     return masks_array
-
 
 # Create a NasNetLarge pretrained using ImageNet, freezing all prertained layers.
 def unet_nasnet(input_shape, num_classes):
@@ -77,22 +78,22 @@ def unet_nasnet(input_shape, num_classes):
 
 def main():
     # Define image size and color channels
-    shapeX, shapeY = 320, 320
+    shapeX, shapeY = 160, 160
     input_shape = (shapeX, shapeY, 3)  
     num_classes = 1
 
     # Create model and compile it using as loss function BinaryCrossentropy and defining as performance metrics the accuracy, recall and AUC.
     model = unet_nasnet(input_shape, num_classes)
-    model.compile(optimizer='adam', loss=BinaryCrossentropy(), metrics=['accuracy'])
+    model.compile(optimizer='adam', loss=BinaryCrossentropy(), metrics=['accuracy', Recall(), AUC()])
 
     # Load all images and masks.
     train_images = load_jpg_images("./train/images/", (shapeX, shapeY))
     train_masks = load_jpg_masks("./train/masks/", (shapeX, shapeY))
-    val_images = load_jpg_images("./valid/images/", (shapeX, shapeY))
-    val_masks = load_jpg_masks("./valid/masks/", (shapeX, shapeY))
+    val_images = load_jpg_images("./validation/images/", (shapeX, shapeY))
+    val_masks = load_jpg_masks("./validation/masks/", (shapeX, shapeY))
 
     # Train the model
-    model.fit(train_images, train_masks, validation_data=(val_images, val_masks), epochs=3, batch_size=16)
+    model.fit(train_images, train_masks, validation_data=(val_images, val_masks), epochs=200, batch_size=16)
 
     # Save the trained model
     model.save('model.h5')
