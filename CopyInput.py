@@ -36,7 +36,7 @@ def main(input_folder):
         mask = os.listdir(f'{input_folder}\\test\\{element}\\masks')[0]
 
         shutil.copyfile(f'{input_folder}\\test\\{element}\\images\\{image}', f'{validation_images}\\{image}')
-        shutil.copyfile(f'{input_folder}\\test\\{element}\\images\\{image}', f'{validation_masks}\\{mask}')
+        shutil.copyfile(f'{input_folder}\\test\\{element}\\masks\\{mask}', f'{validation_masks}\\{mask}')
 
 if __name__ == "__main__":
     current_dir = os.path.dirname(os.path.abspath(__file__))
