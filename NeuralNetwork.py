@@ -59,24 +59,12 @@ def load_data(batch_size, target_size):
     train_data_generator = zip(train_image_generator, train_mask_generator)
     validation_data_generator = zip(validation_image_generator, validation_mask_generator)
 
-
-    # Comprobar las dimensiones de las imágenes y las máscaras
-    for i, (image, mask) in enumerate(train_data_generator):
-        if i == 0:
-            print("Dimensiones de imágenes de entrenamiento:", image.shape)
-            print("Dimensiones de máscaras de entrenamiento:", mask.shape)
-        if i >= 10:
-            break
-
-    for i, (image, mask) in enumerate(validation_data_generator):
-        if i == 0:
-            print("Dimensiones de imágenes de validación:", image.shape)
-            print("Dimensiones de máscaras de validación:", mask.shape)
-        if i >= 10:
-            break
-
-
     return train_data_generator, validation_data_generator
+
+def dice_coefficient(y_true, y_pred):
+    intersection = tf.reduce_sum(y_true * y_pred)
+    union = tf.reduce_sum(y_true) + tf.reduce_sum(y_pred)
+    return (2.0 * intersection + 1e-5) / (union + 1e-5)
 
 # Define la arquitectura de U-Net para segmentación
 def create_unet(input_shape):
@@ -102,9 +90,9 @@ def create_unet(input_shape):
     return modelo
 
 def main():
-    batch_size = 16
+    batch_size = 8
     target_size = (320, 320)
-    epochs = 5
+    epochs = 200
     
     # Cargar datos de segmentación para entrenamiento y validación
     train_data_generator, validation_data_generator = load_data(batch_size, target_size)
@@ -115,7 +103,7 @@ def main():
     # Compilar el modelo con pérdida de entropía cruzada binaria y métrica de precisión
     model.compile(optimizer=Adam(lr=1e-4), 
                   loss='binary_crossentropy',  # Cambiar a binary_crossentropy
-                  metrics=['accuracy', Recall(), AUC()])
+                  metrics=['accuracy', Recall(), AUC(), dice_coefficient])
 
     # Entrenar el modelo con los datos de entrenamiento y validar con los datos de validación
     history = model.fit(
